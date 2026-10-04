@@ -1,0 +1,8 @@
+{
+  "name": "ksia-ert-case-card-drill-3-min",
+  "description": "An offline-capable emergency response training app for KSIA students to simulate and classify emergency scenarios under time pressure.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
