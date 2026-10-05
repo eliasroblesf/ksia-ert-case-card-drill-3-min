@@ -25,7 +25,15 @@ import {
   ShieldAlert,
   Award,
   AlertCircle,
-  RotateCcw
+  RotateCcw,
+  Lock,
+  Unlock,
+  Shuffle,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
@@ -37,6 +45,16 @@ type AppStage = 'CHOICE' | 'REGISTRATION' | 'SCENARIO' | 'CLASSIFICATION' | 'REP
 
 const STANDARD_TIME_LIMIT = 360; // 6 minutes total (3 min read + 3 min classify)
 const MAX_SESSION_TIME = 900; // 15 minutes absolute cutoff
+
+// Helper function to randomly shuffle an array
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
 
 export default function App() {
   const [stage, setAppStage] = useState<AppStage>('CHOICE');
@@ -54,6 +72,7 @@ export default function App() {
 
   // User answers
   const [selectedLevel, setSelectedLevel] = useState<string>('');
+  const [shuffledNotificationActions, setShuffledNotificationActions] = useState(() => shuffleArray(NOTIFICATION_ACTIONS));
   const [notificationSequence, setNotificationSequence] = useState<Record<string, number>>(
     Object.fromEntries(NOTIFICATION_ACTIONS.map(a => [a.id, 0]))
   );
@@ -64,6 +83,7 @@ export default function App() {
     setSelectedScenario(scenario);
     setTeamMembers(['', '', '']);
     setRegError('');
+    setShuffledNotificationActions(shuffleArray(NOTIFICATION_ACTIONS));
     setAppStage('REGISTRATION');
   };
 
@@ -105,6 +125,7 @@ export default function App() {
     setTotalElapsedSeconds(0);
     setRetriesCount(0);
     setSelectedLevel('');
+    setShuffledNotificationActions(shuffleArray(NOTIFICATION_ACTIONS));
     setNotificationSequence(Object.fromEntries(NOTIFICATION_ACTIONS.map(a => [a.id, 0])));
     setSelectedTacticalIds([]);
     setIsDrillActive(true);
@@ -288,6 +309,7 @@ export default function App() {
   const handleRetryAssessment = () => {
     if (totalElapsedSeconds >= MAX_SESSION_TIME) return;
     setRetriesCount(prev => prev + 1);
+    setShuffledNotificationActions(shuffleArray(NOTIFICATION_ACTIONS));
     setIsDrillActive(true);
     setAppStage('CLASSIFICATION');
   };
@@ -856,102 +878,385 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* DELIVERABLE 1: Classification Level (30 Pts) */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                      1. Declare Classification Level (30 Pts) | تحديد مستوى الطوارئ
-                    </label>
-                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      Required / إلزامي
+                {/* DELIVERABLE 1: Classification Level (30 Pts) - CRITICAL PREREQUISITE */}
+                <div className={`p-5 md:p-6 rounded-3xl border-2 transition-all duration-300 ${
+                  !selectedLevel 
+                    ? 'border-amber-400 bg-amber-50/30 shadow-md ring-2 ring-amber-300/40' 
+                    : 'border-emerald-300 bg-emerald-50/15 shadow-sm'
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black tracking-wider uppercase ${
+                        !selectedLevel ? 'bg-amber-500 text-slate-950' : 'bg-emerald-600 text-white'
+                      }`}>
+                        Step 1 • الخطوة 1
+                      </span>
+                      <h4 className="text-sm md:text-base font-black text-slate-900">
+                        Declare Classification Level (30 Pts) | تحديد مستوى الطوارئ
+                      </h4>
+                    </div>
+
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                      !selectedLevel 
+                        ? 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse' 
+                        : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    }`}>
+                      {!selectedLevel ? 'Mandatory Prerequisite / شرط إلزامي' : '✓ Completed / مكتمل'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Clarification & Warning Banner */}
+                  {!selectedLevel ? (
+                    <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 mb-4">
+                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-xs md:text-sm">
+                        <p className="font-extrabold text-amber-950">
+                          Action Required: Select an emergency classification level below!
+                        </p>
+                        <p className="text-xs text-amber-800 mt-0.5">
+                          Section 2 (Notification Sequence) is locked until you declare the incident level based on the scenario threat profile.
+                        </p>
+                        <p className="text-xs font-arabic text-amber-900 font-bold mt-1" dir="rtl">
+                          تنبيه إلزامي: يجب اختيار وتحديد مستوى الطوارئ أدناه أولاً لفتح تسلسل البلاغات في القسم 2.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl bg-emerald-100/70 border border-emerald-300 text-emerald-950 mb-4">
+                      <div className="flex items-center gap-2 text-xs md:text-sm">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        <div>
+                          <span className="font-extrabold text-emerald-950">Selected Level: {selectedLevel}</span>
+                          <span className="text-emerald-700 mx-2">•</span>
+                          <span className="text-emerald-800 font-medium">Part 2 (Notification Sequence) is now unlocked.</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-arabic text-emerald-800 font-bold" dir="rtl">
+                        تم اعتماد المستوى — تم فتح تسلسل البلاغات
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 3 Level Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                     {[
                       {
                         level: 'Level 1',
-                        labelEn: 'Level 1 (Localized Incident)',
-                        labelAr: 'المستوى 1 (حادث موضعي محدود)',
-                        descEn: 'Contained in room by office ERT',
-                        descAr: 'يتم احتواؤه في الغرفة عبر طاقم المبنى'
+                        tierBadge: 'Level 1 • المستوى الأول',
+                        labelEn: 'Localized Incident',
+                        labelAr: 'حادث موضعي محدود',
+                        descEn: 'Confined to a single room/device; manageable with on-site staff & extinguishers.',
+                        descAr: 'محصور في غرفة واحدة أو جهاز واحد، ويمكن احتواؤه بطواقم وأدوات المبنى.',
+                        accentBorder: 'hover:border-amber-400 focus:border-amber-500',
+                        activeBg: 'bg-amber-50 border-amber-500 shadow-md ring-2 ring-amber-300',
+                        badgeColor: 'bg-amber-100 text-amber-800'
                       },
                       {
                         level: 'Level 2',
-                        labelEn: 'Level 2 (Facility Emergency)',
-                        labelAr: 'المستوى 2 (طوارئ المنشأة)',
-                        descEn: 'Threatens floor/wing; needs Civil Defense',
-                        descAr: 'يهدد الجناح/الطابق ويتطلب الدفاع المدني'
+                        tierBadge: 'Level 2 • المستوى الثاني',
+                        labelEn: 'Facility Emergency',
+                        labelAr: 'طوارئ المنشأة',
+                        descEn: 'Threatens entire floor or office wing; requires Civil Defense (998) & building triage.',
+                        descAr: 'يهدد طابقاً أو جناحاً إدارياً ويتطلب تدخلاً ميدانياً للدفاع المدني وإخلاءً واسعاً.',
+                        accentBorder: 'hover:border-orange-400 focus:border-orange-500',
+                        activeBg: 'bg-orange-50 border-orange-500 shadow-md ring-2 ring-orange-300',
+                        badgeColor: 'bg-orange-100 text-orange-800'
                       },
                       {
                         level: 'Level 3',
-                        labelEn: 'Level 3 (Major Disaster)',
-                        labelAr: 'المستوى 3 (كارثة كبرى)',
-                        descEn: 'Multi-agency full scale aerodrome response',
-                        descAr: 'استجابة شاملة على مستوى المطار بالكامل'
+                        tierBadge: 'Level 3 • المستوى الثالث',
+                        labelEn: 'Major Disaster',
+                        labelAr: 'كارثة كبرى بالمطار',
+                        descEn: 'Multi-floor structure compromise, blocked exits, airport-wide emergency mobilization.',
+                        descAr: 'خطر إنشائي يشمل طوابق متعددة وحصار مخارج، ويتطلب استنفاراً شاملاً على مستوى المطار.',
+                        accentBorder: 'hover:border-red-400 focus:border-red-500',
+                        activeBg: 'bg-red-50 border-red-500 shadow-md ring-2 ring-red-300',
+                        badgeColor: 'bg-red-100 text-red-800'
                       }
-                    ].map((item) => (
-                      <button
-                        key={item.level}
-                        type="button"
-                        onClick={() => setSelectedLevel(item.level)}
-                        className={`p-4 rounded-2xl border-2 text-left transition-all relative ${
-                          selectedLevel === item.level 
-                            ? 'bg-amber-50 border-amber-500 shadow-md ring-2 ring-amber-300' 
-                            : 'bg-slate-50/60 border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center mb-1">
-                          <span className={`font-black text-sm ${selectedLevel === item.level ? 'text-amber-900' : 'text-slate-800'}`}>
-                            {item.labelEn}
-                          </span>
-                          {selectedLevel === item.level && (
-                            <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                          )}
-                        </div>
-                        <p className="text-xs font-arabic text-slate-600 mb-1" dir="rtl">
-                          {item.labelAr}
-                        </p>
-                        <p className="text-[11px] text-slate-500">
-                          {item.descEn}
-                        </p>
-                      </button>
-                    ))}
+                    ].map((item) => {
+                      const isSelected = selectedLevel === item.level;
+                      return (
+                        <button
+                          key={item.level}
+                          type="button"
+                          onClick={() => setSelectedLevel(item.level)}
+                          className={`p-4 md:p-5 rounded-2xl border-2 text-left transition-all relative flex flex-col justify-between cursor-pointer ${
+                            isSelected 
+                              ? item.activeBg 
+                              : `bg-white border-slate-200 ${item.accentBorder} hover:shadow-xs`
+                          }`}
+                        >
+                          <div>
+                            <div className="flex justify-between items-start gap-2 mb-2">
+                              <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full ${item.badgeColor}`}>
+                                {item.tierBadge}
+                              </span>
+                              
+                              {/* Visual Radio Indicator */}
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                                isSelected 
+                                  ? 'bg-slate-900 text-amber-400 ring-2 ring-slate-900 shadow-xs' 
+                                  : 'border-2 border-slate-300 bg-slate-50'
+                              }`}>
+                                {isSelected ? (
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <h5 className={`font-black text-base ${isSelected ? 'text-slate-950' : 'text-slate-900'}`}>
+                              {item.labelEn}
+                            </h5>
+                            <p className="text-xs font-arabic font-bold text-slate-700 mt-0.5" dir="rtl">
+                              {item.labelAr}
+                            </p>
+                          </div>
+
+                          <div className="mt-3 pt-2.5 border-t border-slate-100/80 space-y-1">
+                            <p className="text-[11px] text-slate-600 leading-snug">
+                              {item.descEn}
+                            </p>
+                            <p className="text-[10px] font-arabic text-slate-500 leading-snug" dir="rtl">
+                              {item.descAr}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* DELIVERABLE 2: Notification Sequence (35 Pts) */}
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                      2. Notification Sequence (35 Pts) | تسلسل البلاغات والإخطار
-                    </label>
-                    <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      Use dropdowns to assign 1, 2, 3... (Numbers are strictly unique)
+                {/* STANDARD PROCEDURE SEQUENCE GUIDE - ALWAYS VISIBLE ON TOP BEFORE STEP 2 */}
+                <div className="p-5 md:p-6 rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-md space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0">
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm md:text-base font-black text-amber-400">
+                            Standard Procedure Sequence Guide (Reference List)
+                          </h4>
+                          <span className="bg-amber-400/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-400/30">
+                            SOP Baseline
+                          </span>
+                        </div>
+                        <p className="text-xs font-arabic text-slate-300 mt-0.5" dir="rtl">
+                          الدليل الإرشادي: تسلسل الإجراءات والبلاغات القياسي المعتمد (مرجع لتنظيم سيناريو فريقك)
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-400">
+                      Standard ERT Protocol (1 - 9) • الترتيب المرجعي العام
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">
-                    Select the order in which notifications must be transmitted. Selecting an existing number will automatically reassign it.
+
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Review the official standard procedure sequence below as your benchmark guide. In Step 2, organize and sequence the actions required for your assigned scenario:
                   </p>
 
-                  <div className="space-y-2">
-                    {NOTIFICATION_ACTIONS.map((action) => {
+                  {/* Standard Sequence Reference Grid (Always Visible) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        1
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-amber-400 uppercase block">Standard Step 1</span>
+                        <p className="font-bold text-slate-100 text-xs">Discoverer: Alert ERT Team Leader</p>
+                        <p className="text-[11px] text-slate-400">Immediate internal alert to initiate emergency command.</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">المكتشف: تنبيه قائد فريق الاستجابة للطوارئ فوراً</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        2
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-amber-400 uppercase block">Standard Step 2</span>
+                        <p className="font-bold text-slate-100 text-xs">Discoverer: Call Airport Operations (AOCC)</p>
+                        <p className="text-[11px] text-slate-400">Transmit L-N-N-H details (Location, Nature, Numbers, Hazards).</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">المكتشف: إبلاغ مركز عمليات المطار (AOCC) ببيانات الحادث</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        3
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-amber-400 uppercase block">Standard Step 3</span>
+                        <p className="font-bold text-slate-100 text-xs">Team Leader: Activate ERT Roles</p>
+                        <p className="text-[11px] text-slate-400">Broadcast alert and mobilize team operational squads.</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">قائد الفريق: إطلاق نداء التفعيل وتوجيه مسؤولي المهام</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-blue-500 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        4
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-blue-400 uppercase block">Standard Step 4</span>
+                        <p className="font-bold text-slate-100 text-xs">Evacuation Support: Guide Office Staff</p>
+                        <p className="text-[11px] text-slate-400">Direct staff toward emergency exit stairwells & assembly area.</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">مسؤول الإخلاء: توجيه موظفي المكاتب لسلالم الطوارئ</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-rose-500 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        5
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-rose-400 uppercase block">Standard Step 5</span>
+                        <p className="font-bold text-slate-100 text-xs">Casualty Care: Deliver First Aid / CPR / AED</p>
+                        <p className="text-[11px] text-slate-400">Immediate on-site life support for any injured persons.</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">مسؤول الإسعاف: تقديم الإسعافات الأولية / الإنعاش ومزيل الرجفان</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-red-600 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        6
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-red-400 uppercase block">Standard Step 6</span>
+                        <p className="font-bold text-slate-100 text-xs">Liaison: Call Civil Defense (998)</p>
+                        <p className="text-[11px] text-slate-400">Request external backup for active fire, Hazmat, or rescue.</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">مسؤول التنسيق: استدعاء الدفاع المدني (998) للدعم الميداني</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-emerald-500 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        7
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase block">Standard Step 7</span>
+                        <p className="font-bold text-slate-100 text-xs">Liaison: Call Saudi Red Crescent (997)</p>
+                        <p className="text-[11px] text-slate-400">Request ambulance medical triage and hospital transport.</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">مسؤول التنسيق: طلب إسعاف الهلال الأحمر السعودي (997)</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        8
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-amber-400 uppercase block">Standard Step 8</span>
+                        <p className="font-bold text-slate-100 text-xs">Facilities: Order Remote Utility Shutoff</p>
+                        <p className="text-[11px] text-slate-400">Isolate electrical feeds or gas supplies at distribution panels.</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">قائد الفريق / الصيانة: عزل وفصل التيار الكهربائي أو الغاز</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-start gap-2.5">
+                      <span className="w-6 h-6 rounded-lg bg-indigo-500 text-white font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        9
+                      </span>
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase block">Standard Step 9</span>
+                        <p className="font-bold text-slate-100 text-xs">Liaison: Coordinate Security Door Release</p>
+                        <p className="text-[11px] text-slate-400">Request Security to unlock electronic access doors and secure cordon.</p>
+                        <p className="text-[10px] font-arabic text-slate-400" dir="rtl">مسؤول التنسيق: التنسيق مع أمن المطار لفتح بوابات الإخلاء</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DELIVERABLE 2: Notification Sequence (35 Pts) - GATED UNTIL STEP 1 IS COMPLETED */}
+                <div className={`p-5 md:p-6 rounded-3xl border-2 transition-all duration-300 ${
+                  !selectedLevel 
+                    ? 'border-slate-200 bg-slate-50/70' 
+                    : 'border-blue-200 bg-white shadow-sm'
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black tracking-wider uppercase ${
+                        selectedLevel ? 'bg-blue-600 text-white' : 'bg-slate-300 text-slate-600'
+                      }`}>
+                        Step 2 • الخطوة 2
+                      </span>
+                      <h4 className="text-sm md:text-base font-black text-slate-900">
+                        Organize Scenario Notification Sequence (35 Pts) | تسلسل البلاغات للسيناريو
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {selectedLevel ? (
+                        <button
+                          type="button"
+                          onClick={() => setShuffledNotificationActions(shuffleArray(NOTIFICATION_ACTIONS))}
+                          className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 rounded-xl transition-all shadow-xs cursor-pointer"
+                          title="Reshuffle the display order of items below"
+                        >
+                          <Shuffle className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Shuffle Order | إعادة خلط</span>
+                        </button>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs font-bold text-slate-500 bg-slate-200/80 px-2.5 py-1 rounded-lg">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Locked | مقفل</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Lock Banner if Step 1 is not selected */}
+                  {!selectedLevel ? (
+                    <div className="p-5 rounded-2xl bg-amber-50/50 border-2 border-dashed border-amber-300/80 text-center space-y-2 mb-4">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 text-amber-800 mb-1">
+                        <Lock className="w-6 h-6" />
+                      </div>
+                      <h5 className="font-black text-amber-950 text-base">
+                        Section 2 is Locked: Complete Step 1 First
+                      </h5>
+                      <p className="text-xs text-amber-900 max-w-lg mx-auto leading-relaxed">
+                        In aviation and ERT emergency response standards, the incident classification level dictates the notification chain. Please select <span className="font-bold underline">Level 1, Level 2, or Level 3</span> in Section 1 above to unlock this section.
+                      </p>
+                      <p className="text-xs font-arabic text-amber-800 font-bold" dir="rtl">
+                        في بروتوكولات الاستجابة للطوارئ بمطارات المملكة، يحدد مستوى الحادث أولويات الإخطار. يرجى اختيار المستوى في الخطوة 1 أعلاه لتتمكن من تنظيم التسلسل.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {/* Actions List (Disabled / Blurred if Step 1 not selected) */}
+                  <div className={`space-y-2 transition-all duration-300 ${
+                    !selectedLevel ? 'opacity-35 pointer-events-none select-none filter blur-[0.5px]' : ''
+                  }`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+                      <p className="text-xs text-slate-600 font-medium">
+                        Assign the exact chronological order (<span className="font-bold">1, 2, 3...</span>) for this specific scenario using the reference list above. Options are shuffled below:
+                      </p>
+                      <span className="text-[11px] font-bold text-slate-500">
+                        {sortedUserSequence.length} of {shuffledNotificationActions.length} sequenced
+                      </span>
+                    </div>
+
+                    {shuffledNotificationActions.map((action) => {
                       const pos = notificationSequence[action.id] || 0;
                       return (
                         <div 
                           key={action.id}
                           className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
-                            pos > 0 ? 'bg-amber-50/60 border-amber-300 shadow-xs' : 'bg-slate-50 border-slate-200/80'
+                            pos > 0 
+                              ? 'bg-amber-50/80 border-amber-400 shadow-xs ring-1 ring-amber-300/40' 
+                              : 'bg-slate-50/70 border-slate-200/90 hover:bg-slate-50'
                           }`}
                         >
                           <div className="relative shrink-0">
                             <select
                               value={pos}
+                              disabled={!selectedLevel}
                               onChange={(e) => handleSequenceChange(action.id, parseInt(e.target.value))}
                               className={`appearance-none h-10 w-14 text-center rounded-xl border-2 font-black text-base transition-all cursor-pointer ${
                                 pos > 0 
-                                  ? 'bg-slate-900 border-slate-900 text-amber-400' 
-                                  : 'bg-white border-slate-300 text-slate-400 hover:border-slate-400'
+                                  ? 'bg-slate-900 border-slate-900 text-amber-400 shadow-xs' 
+                                  : 'bg-white border-slate-300 text-slate-500 hover:border-slate-400'
                               }`}
                             >
                               <option value={0}>--</option>
@@ -961,10 +1266,17 @@ export default function App() {
                             </select>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs md:text-sm font-bold ${pos > 0 ? 'text-slate-900' : 'text-slate-600'}`}>
-                              {action.labelEn}
-                            </p>
-                            <p className="text-[11px] font-arabic text-slate-500 mt-0.5" dir="rtl">
+                            <div className="flex items-center gap-2">
+                              {pos > 0 && (
+                                <span className="bg-slate-900 text-amber-400 font-mono text-[10px] font-black px-1.5 py-0.5 rounded">
+                                  Step {pos}
+                                </span>
+                              )}
+                              <p className={`text-xs md:text-sm font-bold ${pos > 0 ? 'text-slate-950 font-black' : 'text-slate-800'}`}>
+                                {action.labelEn}
+                              </p>
+                            </div>
+                            <p className="text-[11px] font-arabic text-slate-600 mt-0.5" dir="rtl">
                               {action.labelAr}
                             </p>
                           </div>
@@ -977,9 +1289,14 @@ export default function App() {
                 {/* DELIVERABLE 3: Immediate Tactical Actions Checkboxes (35 Pts) */}
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">
-                      3. Immediate Tactical Actions (35 Pts) | الإجراءات التكتيكية الفورية
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-blue-600 text-white px-2.5 py-1 rounded-lg text-xs font-black tracking-wider uppercase">
+                        Step 3 • الخطوة 3
+                      </span>
+                      <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-700">
+                        3. Immediate Tactical Actions (35 Pts) | الإجراءات التكتيكية الفورية
+                      </label>
+                    </div>
                     <span className="text-[11px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                       Select all correct life-safety actions (Avoid hazardous pitfalls)
                     </span>
@@ -1021,25 +1338,54 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Footer Controls */}
-                <div className="pt-6 border-t border-slate-100 flex flex-wrap justify-between items-center gap-3">
-                  <button
-                    onClick={() => setAppStage('SCENARIO')}
-                    className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-4 py-2.5 rounded-xl transition-colors"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Review Scenario | مراجعة السيناريو
-                  </button>
+                {/* Submission Readiness Checklist & Footer Controls */}
+                <div className="pt-6 border-t border-slate-100 space-y-4">
+                  {/* Readiness status tags */}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className={`px-3 py-1 rounded-full font-bold flex items-center gap-1.5 border ${
+                      selectedLevel 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                        : 'bg-red-50 text-red-700 border-red-200'
+                    }`}>
+                      {selectedLevel ? '✓' : '✗'} 1. Level: {selectedLevel || 'Not Declared'}
+                    </span>
 
-                  <button
-                    onClick={handleSubmitAssessment}
-                    disabled={!selectedLevel || sortedUserSequence.length === 0 || selectedTacticalIds.length === 0}
-                    className="flex items-center gap-2 bg-slate-900 text-amber-400 hover:bg-slate-800 px-8 py-3.5 rounded-2xl font-bold shadow-lg hover:shadow-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >
-                    <span>Submit & Qualify Drill</span>
-                    <span className="text-xs font-arabic text-white">| تسليم وتقييم التمرين</span>
-                    <Send className="w-4 h-4" />
-                  </button>
+                    <span className={`px-3 py-1 rounded-full font-bold flex items-center gap-1.5 border ${
+                      sortedUserSequence.length > 0 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      {sortedUserSequence.length > 0 ? '✓' : '✗'} 2. Sequence: {sortedUserSequence.length > 0 ? `${sortedUserSequence.length} steps` : 'Pending'}
+                    </span>
+
+                    <span className={`px-3 py-1 rounded-full font-bold flex items-center gap-1.5 border ${
+                      selectedTacticalIds.length > 0 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      {selectedTacticalIds.length > 0 ? '✓' : '✗'} 3. Tactical: {selectedTacticalIds.length > 0 ? `${selectedTacticalIds.length} marked` : 'Pending'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap justify-between items-center gap-3">
+                    <button
+                      onClick={() => setAppStage('SCENARIO')}
+                      className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-4 py-2.5 rounded-xl transition-colors"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Review Scenario | مراجعة السيناريو
+                    </button>
+
+                    <button
+                      onClick={handleSubmitAssessment}
+                      disabled={!selectedLevel || sortedUserSequence.length === 0 || selectedTacticalIds.length === 0}
+                      className="flex items-center gap-2 bg-slate-900 text-amber-400 hover:bg-slate-800 px-8 py-3.5 rounded-2xl font-bold shadow-lg hover:shadow-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      <span>Submit & Qualify Drill</span>
+                      <span className="text-xs font-arabic text-white">| تسليم وتقييم التمرين</span>
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
